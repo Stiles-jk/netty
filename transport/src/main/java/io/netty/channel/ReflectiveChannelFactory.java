@@ -23,6 +23,7 @@ import java.lang.reflect.Constructor;
 
 /**
  * A {@link ChannelFactory} that instantiates a new {@link Channel} by invoking its default constructor reflectively.
+ * 反射调用Channel的默认构造器创建channel对象
  */
 public class ReflectiveChannelFactory<T extends Channel> implements ChannelFactory<T> {
 
@@ -38,6 +39,11 @@ public class ReflectiveChannelFactory<T extends Channel> implements ChannelFacto
         }
     }
 
+    /**
+     * 使用默认构造器创建当前ReflectiveChannelFactory泛型的Channel对象
+     *
+     * @return T
+     */
     @Override
     public T newChannel() {
         try {

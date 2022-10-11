@@ -434,6 +434,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         /** true if the channel has never been registered, false otherwise */
         private boolean neverRegistered = true;
 
+        /**
+         * 当前方法在被调用时未被注册或当前方法运行于EventLoop线程中
+         */
         private void assertEventLoop() {
             assert !registered || eventLoop.inEventLoop();
         }
@@ -557,7 +560,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         "address (" + localAddress + ") anyway as requested.");
             }
 
+            // 记录 Channel 是否激活
             boolean wasActive = isActive();
+            // 绑定端口
             try {
                 doBind(localAddress);
             } catch (Throwable t) {
@@ -566,6 +571,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            // 若 Channel 是新激活的，触发通知 Channel 已激活的事件。
             if (!wasActive && isActive()) {
                 invokeLater(new Runnable() {
                     @Override
@@ -574,7 +580,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     }
                 });
             }
-
+            // 回调通知 promise 执行成功
             safeSetSuccess(promise);
         }
 
@@ -1008,6 +1014,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             close(voidPromise());
         }
 
+        /**
+         * 防止当前入站事件未处理完成时，被另一个入站事件触发关闭连接操作。
+         * @param task
+         */
         private void invokeLater(Runnable task) {
             try {
                 // This method is used by outbound operation implementations to trigger an inbound event later.
