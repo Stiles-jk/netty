@@ -127,6 +127,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * <p>1. 设置ChannelOptions</p>
+     * <p>2. 设置ChannelAttributes</p>
+     * <p>3. 为Channel配置ChannelPipeline</p>
+     * <p>4. 为ChannelPipeline末尾添加使用handler()方法注册的一个ChannelHandler</p>
+     * <p>5. 向EventLoop中添加一个异步任务，该任务向pipeline末尾添加一个ServerBootstrapAcceptor</p>
+     * @param channel
+     */
     @Override
     void init(Channel channel) {
         setChannelOptions(channel, newOptionsArray(), logger);

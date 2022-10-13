@@ -105,7 +105,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
     /**
      * The {@link EventLoopGroup} which is used to handle all the events for the to-be-created
-     * {@link Channel}
+     * {@link Channel}.
+     * <p>用于设置当前Bootstrap的group，如果当前Bootstrap以及被设置过，则会报错。因此不支持通过当前方法修改Bootstrap的EventLoopGroup</p>
      */
     public B group(EventLoopGroup group) {
         ObjectUtil.checkNotNull(group, "group");
@@ -125,7 +126,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
-     * 设置要被实例化的Channel的类，使用ChannelFactory进行创建
+     * 设置要被实例化的Channel的类，会将传入的Channel的Class封装为ReflectiveChannelFactory对象，
+     * ReflectiveChannelFactory会获取当前Channel类型的无参构造器，并使用该无参构造器创建该Channel的实例对象。
      */
     public B channel(Class<? extends C> channelClass) {
         return channelFactory(new ReflectiveChannelFactory<C>(
@@ -153,6 +155,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * is not working for you because of some more complex needs. If your {@link Channel} implementation
      * has a no-args constructor, its highly recommend to just use {@link #channel(Class)} to
      * simplify your code.
+     * <p>用于设置Bootstrap中的ChannelFactory对象，如果当前业务的Channel构建并不复杂，
+     * 则建议使用channel使用ReflectiveChannelFactory进行Channel的构建</p>
      */
     @SuppressWarnings({ "unchecked", "deprecation" })
     public B channelFactory(io.netty.channel.ChannelFactory<? extends C> channelFactory) {
@@ -355,21 +359,23 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
-                // SocketException("too many open files") 这是由于客户端和服务端之间连接频繁导致的
+                // SocketException("too many open files") : 由于客户端和服务端之间连接频繁导致的
                 // channel can be null if newChannel crashed (eg SocketException("too many open files"))
                 channel.unsafe().closeForcibly();
-                // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
+                // as the Channel is not registered, yet we need to force the usage of the GlobalEventExecutor
                 return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
             }
-            // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
+            // as the Channel is not registered, yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
         // 将channel对象注册到EventGroup中
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
+                // 注册成功，关闭channel
                 channel.close();
             } else {
+                // 注册失败，强制关闭channel
                 channel.unsafe().closeForcibly();
             }
         }
@@ -490,7 +496,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return Collections.unmodifiableMap(new HashMap<K, V>(map));
     }
 
-    // 4.1 版本后 setAttributes,setChannelOptions,setChannelOption从AbstractBootstrapConfig移到AbstractBootstrap中
+
     static void setAttributes(Channel channel, Map.Entry<AttributeKey<?>, Object>[] attrs) {
         for (Map.Entry<AttributeKey<?>, Object> e: attrs) {
             @SuppressWarnings("unchecked")
@@ -499,6 +505,13 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 和option方法不同，setChannelOptions，setChannelOption方法都是只对已经通过option配置的ChannelOption进行修改
+     * 无法添加新的ChannelOption
+     * @param channel
+     * @param options
+     * @param logger
+     */
     static void setChannelOptions(
             Channel channel, Map.Entry<ChannelOption<?>, Object>[] options, InternalLogger logger) {
         for (Map.Entry<ChannelOption<?>, Object> e: options) {

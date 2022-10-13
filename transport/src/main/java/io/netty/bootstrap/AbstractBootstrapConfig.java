@@ -28,7 +28,8 @@ import java.util.Map;
 
 /**
  * Exposes the configuration of an {@link AbstractBootstrap}.
- * 每个Config类对应一个Bootstrap类
+ * 每个Config类对应一个Bootstrap类,AbstractBootstrapConfig实际并不持有除AbstractBootstrap以外的任何属性，
+ * 每次返回都是调用AbstractBootstrap对应属性的get方法。
  */
 public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>, C extends Channel> {
 
