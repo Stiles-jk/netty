@@ -46,9 +46,21 @@ import java.util.Map;
  * NIO selector based implementation to accept new connections.
  */
 public class NioServerSocketChannel extends AbstractNioMessageChannel
-                             implements io.netty.channel.socket.ServerSocketChannel {
+        implements io.netty.channel.socket.ServerSocketChannel {
 
+    /**
+     * 对当前Channel接口实现类的一些属性描述
+     */
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+
+    /**
+     * SelectorProvider#provider方法会根据以下优先级返回SelectorProvider
+     * <lu>
+     * <li>System.property指定的java.nio.channels.spi.SelectorProvider</li>
+     * <li>从当前类路径下寻找SelectorProvider</li>
+     * <li>都没有找到，使用java自带的sun.nio.ch.DefaultSelectorProvider</li>
+     * </lu>
+     */
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
@@ -56,6 +68,13 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     private static final Method OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY =
             SelectorProviderUtil.findOpenMethod("openServerSocketChannel");
 
+    /**
+     * 使用SelectorProvider创建ServerSocketChannel对象
+     *
+     * @param provider
+     * @param family
+     * @return
+     */
     private static ServerSocketChannel newChannel(SelectorProvider provider, InternetProtocolFamily family) {
         try {
             ServerSocketChannel channel =

@@ -44,15 +44,26 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link Channel} implementations which use a Selector based approach.
+ * 基于Selector方式的Channel接口的抽象类
  */
 public abstract class AbstractNioChannel extends AbstractChannel {
 
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
+    /**
+     * java.nio.channels.SelectableChannel,
+     * 即Java原生NIO的Channel对象
+     */
     private final SelectableChannel ch;
+    /**
+     * 读事件的操作位值
+     */
     protected final int readInterestOp;
     volatile SelectionKey selectionKey;
+    /**
+     * 当前Channel是否等待读取
+     */
     boolean readPending;
     private final Runnable clearReadPendingRunnable = new Runnable() {
         @Override
@@ -372,6 +383,11 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         return loop instanceof NioEventLoop;
     }
 
+    /**
+     * 将Java原生的NioChannel对象注册到EventLoop的Selector上，
+     * AbstractNioChannel使用Java原生的NIO Selector。ops=0：注册SelectionKey.OP_ACCEPT事件
+     * @throws Exception
+     */
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;

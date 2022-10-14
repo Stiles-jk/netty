@@ -368,7 +368,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered, yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-        // 将channel对象注册到EventGroup中
+        // 将channel对象注册到EventGroup中,实际上是注册到EventLoopGroup中到其中一个EventLoop中
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
@@ -388,7 +388,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         //    i.e. It's safe to attempt bind() or connect() now:
         //         because bind() or connect() will be executed *after* the scheduled registration task is executed
         //         because register(), bind(), and connect() are all bound to the same thread.
-
+        // 到达这一步，我们可以知道，ChannelPromise没有出错，并处于一下两个状态中
+        // 1. 如果我们使用EventLoop进行注册，则当前已经注册完成
+        // 2. 如果我们使用其他线程进行注册，则当前注册流程中到注册请求已经成功添加到EventLoop的任务队列中，并等待之后进行执行
+        // 这两种情况都可以安全地执行bind和connect操作，因为在netty中，register，bind和connect方法都是绑定在同一个线程中的
         return regFuture;
     }
 

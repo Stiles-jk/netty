@@ -40,7 +40,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * {@link Bootstrap} sub-class which allows easy bootstrap of {@link ServerChannel}
- *
+ * 在Netty中，默认Parent为AbstractBootstrap,其他实现类为childBootstrap，
+ * 因此工作本类中所有的option,attr,eventLoopGroup,ChannelHandler属性都由child字样
  */
 public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {
 
@@ -54,7 +55,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private volatile EventLoopGroup childGroup;
     private volatile ChannelHandler childHandler;
 
-    public ServerBootstrap() { }
+    public ServerBootstrap() {
+    }
 
     private ServerBootstrap(ServerBootstrap bootstrap) {
         super(bootstrap);
@@ -133,6 +135,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
      * <p>3. 为Channel配置ChannelPipeline</p>
      * <p>4. 为ChannelPipeline末尾添加使用handler()方法注册的一个ChannelHandler</p>
      * <p>5. 向EventLoop中添加一个异步任务，该任务向pipeline末尾添加一个ServerBootstrapAcceptor</p>
+     *
      * @param channel
      */
     @Override
@@ -147,10 +150,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
 
+        // 添加 ChannelInitializer 对象到 pipeline 中，用于后续初始化 ChannelHandler 到 pipeline 中。
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(final Channel ch) {
                 final ChannelPipeline pipeline = ch.pipeline();
+                // 为ChannelPipeline末尾添加使用handler()方法注册的一个ChannelHandler
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
                     pipeline.addLast(handler);
@@ -159,6 +164,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // 添加 ServerBootstrapAcceptor 到 pipeline 中。
+                        // 为什么使用 EventLoop 执行添加的过程？如果启动器配置的处理器，
+                        // 并且 ServerBootstrapAcceptor不使用 EventLoop 添加，则会导致 ServerBootstrapAcceptor 添加到配置的处理器之前。
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
@@ -180,6 +188,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * ServerBootstrapAcceptor 也是一个 ChannelHandler 实现类，用于接受客户端的连接请求。
+     */
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
         private final EventLoopGroup childGroup;
