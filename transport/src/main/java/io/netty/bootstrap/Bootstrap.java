@@ -37,19 +37,21 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
- *
  * A {@link Bootstrap} that makes it easy to bootstrap a {@link Channel} to use
  * for clients.
  *
  * <p>The {@link #bind()} methods are useful in combination with connectionless transports such as datagram (UDP).
  * For regular TCP connections, please use the provided {@link #connect()} methods.</p>
- *
+ * <p>
  * 客户端启动器
  */
 public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(Bootstrap.class);
 
+    /**
+     * 默认地址解析器
+     */
     private static final AddressResolverGroup<?> DEFAULT_RESOLVER = DefaultAddressResolverGroup.INSTANCE;
 
     private final BootstrapConfig config = new BootstrapConfig(this);
@@ -57,9 +59,13 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     @SuppressWarnings("unchecked")
     private volatile AddressResolverGroup<SocketAddress> resolver =
             (AddressResolverGroup<SocketAddress>) DEFAULT_RESOLVER;
+    /**
+     * 连接地址
+     */
     private volatile SocketAddress remoteAddress;
 
-    public Bootstrap() { }
+    public Bootstrap() {
+    }
 
     private Bootstrap(Bootstrap bootstrap) {
         super(bootstrap);
@@ -72,8 +78,8 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      *
      * @param resolver the {@link NameResolver} for this {@code Bootstrap}; may be {@code null}, in which case a default
      *                 resolver will be used
-     *
      * @see io.netty.resolver.DefaultAddressResolverGroup
+     * <p>设置地址解析器，如果设置的地址解析器为null，则使用默认地址解析器</p>
      */
     @SuppressWarnings("unchecked")
     public Bootstrap resolver(AddressResolverGroup<?> resolver) {
@@ -155,7 +161,9 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        // 初始化并创建一个客户端的ChannelFuture
         final ChannelFuture regFuture = initAndRegister();
+        // 获取初始化和注册成功的Channel对象
         final Channel channel = regFuture.channel();
 
         if (regFuture.isDone()) {
@@ -188,6 +196,16 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         }
     }
 
+    /**
+     * 使用配置并注册成功的Channel对象，对远程地址{@link SocketAddress}进行解析和连接
+     * <p>连接需要在</p>
+     *
+     * @param channel
+     * @param remoteAddress
+     * @param localAddress
+     * @param promise
+     * @return
+     */
     private ChannelFuture doResolveAndConnect0(final Channel channel, SocketAddress remoteAddress,
                                                final SocketAddress localAddress, final ChannelPromise promise) {
         try {
@@ -196,19 +214,22 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             try {
                 resolver = this.resolver.getResolver(eventLoop);
             } catch (Throwable cause) {
+                // 获取AddressResolver失败，关闭连接
                 channel.close();
                 return promise.setFailure(cause);
             }
 
             if (!resolver.isSupported(remoteAddress) || resolver.isResolved(remoteAddress)) {
                 // Resolver has no idea about what to do with the specified remote address or it's resolved already.
+                // 解析器不支持对当前地址进行解析，或者当前地址已经被解析，则直接执行doConnect方法
                 doConnect(remoteAddress, localAddress, promise);
                 return promise;
             }
-
+            // 执行解析
             final Future<SocketAddress> resolveFuture = resolver.resolve(remoteAddress);
 
             if (resolveFuture.isDone()) {
+                // 解析过程中存在错误，关闭连接
                 final Throwable resolveFailureCause = resolveFuture.cause();
 
                 if (resolveFailureCause != null) {
@@ -240,12 +261,20 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         return promise;
     }
 
+    /**
+     * 在channelRegistered之前被调用，用于给用户对ChannelPipeline进行装配
+     *
+     * @param remoteAddress
+     * @param localAddress
+     * @param connectPromise
+     */
     private static void doConnect(
             final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise connectPromise) {
 
         // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
         // the pipeline in its channelRegistered() implementation.
         final Channel channel = connectPromise.channel();
+        // 从该方法中可以看到，执行连接的线程也是在EventLoop线程中执行，从而保证启动过程中的每一步执行的顺序性
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {

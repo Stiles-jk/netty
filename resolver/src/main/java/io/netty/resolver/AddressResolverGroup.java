@@ -53,6 +53,9 @@ public abstract class AddressResolverGroup<T extends SocketAddress> implements C
      * resolver found, this method creates and returns a new resolver instance created by
      * {@link #newResolver(EventExecutor)} so that the new resolver is reused on another
      * {@code #getResolver(EventExecutor)} call with the same {@link EventExecutor}.
+     * <p>该方法会根据传入的EventExecutor寻找与之对应的AddressResolver
+     * 如果没有找到，则会使用newResolver对象创建一个新的AddressResolver对象
+     * </p>
      */
     public AddressResolver<T> getResolver(final EventExecutor executor) {
         ObjectUtil.checkNotNull(executor, "executor");
