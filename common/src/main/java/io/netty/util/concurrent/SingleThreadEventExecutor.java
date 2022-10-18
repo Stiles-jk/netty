@@ -46,6 +46,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
  * Abstract base class for {@link OrderedEventExecutor}'s that execute all its submitted tasks in a single thread.
+ * 实现 OrderedEventExecutor 接口，继承 AbstractScheduledEventExecutor 抽象类，
+ * 基于单线程的 EventExecutor 抽象类，即一个 EventExecutor 对应一个线程。
  *
  */
 public abstract class SingleThreadEventExecutor extends AbstractScheduledEventExecutor implements OrderedEventExecutor {
