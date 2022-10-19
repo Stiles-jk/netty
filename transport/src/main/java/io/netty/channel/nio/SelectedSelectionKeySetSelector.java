@@ -21,6 +21,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.Set;
 
+/**
+ * 基于 Netty SelectedSelectionKeySet 作为 selectionKeys 的 Selector 实现类
+ */
 final class SelectedSelectionKeySetSelector extends Selector {
     private final SelectedSelectionKeySet selectionKeys;
     private final Selector delegate;
@@ -52,6 +55,7 @@ final class SelectedSelectionKeySetSelector extends Selector {
 
     @Override
     public int selectNow() throws IOException {
+        // 重置 selectionKeys 。从而实现，每次 select 之后，都是新的select 的 NIO SelectionKey 集合。
         selectionKeys.reset();
         return delegate.selectNow();
     }

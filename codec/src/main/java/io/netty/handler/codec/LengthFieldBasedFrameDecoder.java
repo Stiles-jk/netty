@@ -26,6 +26,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 /**
+ *
  * A decoder that splits the received {@link ByteBuf}s dynamically by the
  * value of the length field in the message.  It is particularly useful when you
  * decode a binary message which has an integer header field that represents the
@@ -35,6 +36,7 @@ import io.netty.channel.ChannelHandlerContext;
  * that it can decode any message with a length field, which is often seen in
  * proprietary client-server protocols. Here are some example that will give
  * you the basic idea on which option does what.
+ * <b>lengthAdjustment(可为负) + 长度域的值 = 后续报文长度</b>
  *
  * <h3>2 bytes length field at offset 0, do not strip header</h3>
  *

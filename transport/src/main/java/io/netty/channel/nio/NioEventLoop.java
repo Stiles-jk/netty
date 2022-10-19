@@ -185,9 +185,17 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 该方法会根据sun.nio.ch.SelectorImpl创建一个Selector对象，
+     * 该对象会被封装为SelectedSelectionKeySetSelector对象，
+     * 并存放到SelectorTuple中，并返回
+     *
+     * @return SelectorTuple
+     */
     private SelectorTuple openSelector() {
         final Selector unwrappedSelector;
         try {
+            // 使用SelectorProvider#openSelector()方法获取一个未包装的Selector
             unwrappedSelector = provider.openSelector();
         } catch (IOException e) {
             throw new ChannelException("failed to open a new selector", e);
@@ -196,7 +204,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         if (DISABLE_KEY_SET_OPTIMIZATION) {
             return new SelectorTuple(unwrappedSelector);
         }
-
+        // 获取SelectorImpl
         Object maybeSelectorImplClass = AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
@@ -213,11 +221,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
         if (!(maybeSelectorImplClass instanceof Class) ||
                 // ensure the current selector implementation is what we can instrument.
+                // 确保当前的选择器实现是我们可以检测的。
                 !((Class<?>) maybeSelectorImplClass).isAssignableFrom(unwrappedSelector.getClass())) {
             if (maybeSelectorImplClass instanceof Throwable) {
                 Throwable t = (Throwable) maybeSelectorImplClass;
                 logger.trace("failed to instrument a special java.util.Set into: {}", unwrappedSelector, t);
             }
+            // 返回SelectorTuple
             return new SelectorTuple(unwrappedSelector);
         }
 
@@ -230,7 +240,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 try {
                     Field selectedKeysField = selectorImplClass.getDeclaredField("selectedKeys");
                     Field publicSelectedKeysField = selectorImplClass.getDeclaredField("publicSelectedKeys");
-
+                    // JDK9以上
                     if (PlatformDependent.javaVersion() >= 9 && PlatformDependent.hasUnsafe()) {
                         // Let us try to use sun.misc.Unsafe to replace the SelectionKeySet.
                         // This allows us to also do this in Java9+ without any extra flags.
@@ -247,7 +257,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         }
                         // We could not retrieve the offset, lets try reflection as last-resort.
                     }
-
+                    // 设置private -> public
                     Throwable cause = ReflectionUtil.trySetAccessible(selectedKeysField, true);
                     if (cause != null) {
                         return cause;
@@ -256,7 +266,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     if (cause != null) {
                         return cause;
                     }
-
+                    // 给SelectorImpl对象中的selectedKeys和publicSelectedKeys的值设置为SelectedKeySet
                     selectedKeysField.set(unwrappedSelector, selectedKeySet);
                     publicSelectedKeysField.set(unwrappedSelector, selectedKeySet);
                     return null;
@@ -294,6 +304,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     /**
      * 调用 PlatformDependent#newMpscQueue(...) 方法，创建 mpsc 队列。
+     * mpsc 是 multiple producers and a single consumer 的缩写。
+     * mpsc 是对多线程生产任务，单线程消费任务的消费，
+     *
      * @param maxPendingTasks
      * @return
      */
@@ -344,6 +357,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void register0(SelectableChannel ch, int interestOps, NioTask<?> task) {
         try {
+            // 注册 Java NIO Channel 到 Selector 上。这里我们可以看到，attachment 为 NioTask 对象，而不是 Netty Channel 对象。
             ch.register(unwrappedSelector, interestOps, task);
         } catch (Exception e) {
             throw new EventLoopException("failed to register a channel", e);
@@ -371,6 +385,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
+     * <p>该方法用于 NIO Selector 发生 epoll bug 时，重建 Selector 对象。</p>
      * Replaces the current {@link Selector} of this event loop with newly created {@link Selector}s to work
      * around the infamous epoll 100% CPU bug.
      */
@@ -457,6 +472,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         };
     }
 
+    /**
+     * 主要是需要将老的 Selector 对象的“数据”复制到新的 Selector 对象上，并关闭老的 Selector 对象。
+     */
     private void rebuildSelector0() {
         final Selector oldSelector = selector;
         final SelectorTuple newSelectorTuple;
@@ -471,7 +489,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             logger.warn("Failed to create a new Selector.", e);
             return;
         }
-
+        // // 将注册在 NioEventLoop 上的所有 Channel ，注册到新创建 Selector 对象上
         // Register all channels to the new Selector.
         int nChannels = 0;
         for (SelectionKey key : oldSelector.keys()) {
@@ -519,6 +537,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * NioEventLoop 运行，处理任务
+     */
     @Override
     protected void run() {
         int selectCnt = 0;
@@ -569,19 +590,23 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 if (ioRatio == 100) {
                     try {
                         if (strategy > 0) {
+                            // 处理 Channel 感兴趣的就绪 IO 事件
                             processSelectedKeys();
                         }
                     } finally {
+                        // 运行所有普通任务和定时任务，不限制时间
                         // Ensure we always run tasks.
                         ranTasks = runAllTasks();
                     }
                 } else if (strategy > 0) {
                     final long ioStartTime = System.nanoTime();
                     try {
+                        // 处理 Channel 感兴趣的就绪 IO 事件
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
                         final long ioTime = System.nanoTime() - ioStartTime;
+                        // 运行所有普通任务和定时任务，限制时间
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 } else {
@@ -666,6 +691,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void processSelectedKeys() {
         if (selectedKeys != null) {
+            // 当 selectedKeys 非空，意味着使用优化的 SelectedSelectionKeySetSelector
             processSelectedKeysOptimized();
         } else {
             processSelectedKeysPlain(selector.selectedKeys());
@@ -707,6 +733,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             if (a instanceof AbstractNioChannel) {
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
+                // 自定义处理IO事件的方法
                 @SuppressWarnings("unchecked")
                 NioTask<SelectableChannel> task = (NioTask<SelectableChannel>) a;
                 processSelectedKey(k, task);
@@ -730,6 +757,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 处理 Channel 新增就绪的 IO 事件。代码如下：
+     */
     private void processSelectedKeysOptimized() {
         for (int i = 0; i < selectedKeys.size; ++i) {
             final SelectionKey k = selectedKeys.keys[i];
@@ -758,9 +788,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+
     private void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
         final AbstractNioChannel.NioUnsafe unsafe = ch.unsafe();
+        // 当在上一次循环中取消了当前key，则会在本次调用中关闭对应的Channel
         if (!k.isValid()) {
+            // selectionKey 无效
             final EventLoop eventLoop;
             try {
                 eventLoop = ch.eventLoop();
@@ -782,25 +815,30 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         try {
+            // 获取当前key中就绪的操作
             int readyOps = k.readyOps();
             // We first need to call finishConnect() before try to trigger a read(...) or write(...) as otherwise
             // the NIO JDK channel implementation may throw a NotYetConnectedException.
             if ((readyOps & SelectionKey.OP_CONNECT) != 0) {
+                // 移除对 OP_CONNECT 感兴趣
                 // remove OP_CONNECT as otherwise Selector.select(..) will always return without blocking
                 // See https://github.com/netty/netty/issues/924
                 int ops = k.interestOps();
+                // ~ 按位取反运算符翻转操作数的每一位
                 ops &= ~SelectionKey.OP_CONNECT;
                 k.interestOps(ops);
 
                 unsafe.finishConnect();
             }
 
+            // OP_WRITE 事件就绪
             // Process OP_WRITE first as we may be able to write some queued buffers and so free memory.
             if ((readyOps & SelectionKey.OP_WRITE) != 0) {
                 // Call forceFlush which will also take care of clear the OP_WRITE once there is nothing left to write
                 unsafe.forceFlush();
             }
-
+            // SelectionKey.OP_READ 或 SelectionKey.OP_ACCEPT 就绪
+            // readyOps == 0 是对 JDK Bug 的处理，防止空的死循环
             // Also check for readOps of 0 to workaround possible JDK bug which may otherwise lead
             // to a spin loop
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
@@ -811,6 +849,11 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 使用 NioTask ，自定义实现 Channel 处理 Channel IO 就绪的事件。
+     * @param k
+     * @param task
+     */
     private static void processSelectedKey(SelectionKey k, NioTask<SelectableChannel> task) {
         int state = 0;
         try {
