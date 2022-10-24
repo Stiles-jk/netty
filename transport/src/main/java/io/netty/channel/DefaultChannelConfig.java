@@ -42,6 +42,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositive;
 import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 
 /**
+ * ChannelConfig的默认实现
  * The default {@link ChannelConfig} implementation.
  */
 public class DefaultChannelConfig implements ChannelConfig {
@@ -96,7 +97,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         if (result == null) {
             result = new IdentityHashMap<ChannelOption<?>, Object>();
         }
-        for (ChannelOption<?> o: options) {
+        for (ChannelOption<?> o : options) {
             result.put(o, getOption(o));
         }
         return result;
@@ -108,7 +109,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         ObjectUtil.checkNotNull(options, "options");
 
         boolean setAllOptions = true;
-        for (Entry<ChannelOption<?>, ?> e: options.entrySet()) {
+        for (Entry<ChannelOption<?>, ?> e : options.entrySet()) {
             if (!setOption((ChannelOption<Object>) e.getKey(), e.getValue())) {
                 setAllOptions = false;
             }
@@ -118,7 +119,7 @@ public class DefaultChannelConfig implements ChannelConfig {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "deprecation" })
+    @SuppressWarnings({"unchecked", "deprecation"})
     public <T> T getOption(ChannelOption<T> option) {
         ObjectUtil.checkNotNull(option, "option");
 
@@ -221,8 +222,9 @@ public class DefaultChannelConfig implements ChannelConfig {
     /**
      * {@inheritDoc}
      * <p>
+     *
      * @throws IllegalStateException if {@link #getRecvByteBufAllocator()} does not return an object of type
-     * {@link MaxMessagesRecvByteBufAllocator}.
+     *                               {@link MaxMessagesRecvByteBufAllocator}.
      */
     @Override
     @Deprecated
@@ -232,15 +234,16 @@ public class DefaultChannelConfig implements ChannelConfig {
             return allocator.maxMessagesPerRead();
         } catch (ClassCastException e) {
             throw new IllegalStateException("getRecvByteBufAllocator() must return an object of type " +
-                    "MaxMessagesRecvByteBufAllocator", e);
+                                                    "MaxMessagesRecvByteBufAllocator", e);
         }
     }
 
     /**
      * {@inheritDoc}
      * <p>
+     *
      * @throws IllegalStateException if {@link #getRecvByteBufAllocator()} does not return an object of type
-     * {@link MaxMessagesRecvByteBufAllocator}.
+     *                               {@link MaxMessagesRecvByteBufAllocator}.
      */
     @Override
     @Deprecated
@@ -251,7 +254,7 @@ public class DefaultChannelConfig implements ChannelConfig {
             return this;
         } catch (ClassCastException e) {
             throw new IllegalStateException("getRecvByteBufAllocator() must return an object of type " +
-                    "MaxMessagesRecvByteBufAllocator", e);
+                                                    "MaxMessagesRecvByteBufAllocator", e);
         }
     }
 
@@ -263,7 +266,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         return maxMessagesPerWrite;
     }
 
-     /**
+    /**
      * Set the maximum number of message to write per eventloop run. Once this limit is
      * reached we will continue to process other events before trying to write the remaining messages.
      */
@@ -316,9 +319,10 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     /**
      * Set the {@link RecvByteBufAllocator} which is used for the channel to allocate receive buffers.
+     *
      * @param allocator the allocator to set.
-     * @param metadata Used to set the {@link ChannelMetadata#defaultMaxMessagesPerRead()} if {@code allocator}
-     * is of type {@link MaxMessagesRecvByteBufAllocator}.
+     * @param metadata  Used to set the {@link ChannelMetadata#defaultMaxMessagesPerRead()} if {@code allocator}
+     *                  is of type {@link MaxMessagesRecvByteBufAllocator}.
      */
     private void setRecvByteBufAllocator(RecvByteBufAllocator allocator, ChannelMetadata metadata) {
         checkNotNull(allocator, "allocator");
@@ -349,7 +353,8 @@ public class DefaultChannelConfig implements ChannelConfig {
      * Is called once {@link #setAutoRead(boolean)} is called with {@code false} and {@link #isAutoRead()} was
      * {@code true} before.
      */
-    protected void autoReadCleared() { }
+    protected void autoReadCleared() {
+    }
 
     @Override
     public boolean isAutoClose() {
@@ -370,7 +375,7 @@ public class DefaultChannelConfig implements ChannelConfig {
     @Override
     public ChannelConfig setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
         checkPositiveOrZero(writeBufferHighWaterMark, "writeBufferHighWaterMark");
-        for (;;) {
+        for (; ; ) {
             WriteBufferWaterMark waterMark = writeBufferWaterMark;
             if (writeBufferHighWaterMark < waterMark.low()) {
                 throw new IllegalArgumentException(
@@ -379,7 +384,9 @@ public class DefaultChannelConfig implements ChannelConfig {
                                 writeBufferHighWaterMark);
             }
             if (WATERMARK_UPDATER.compareAndSet(this, waterMark,
-                    new WriteBufferWaterMark(waterMark.low(), writeBufferHighWaterMark, false))) {
+                                                new WriteBufferWaterMark(waterMark.low(),
+                                                                         writeBufferHighWaterMark,
+                                                                         false))) {
                 return this;
             }
         }
@@ -393,7 +400,7 @@ public class DefaultChannelConfig implements ChannelConfig {
     @Override
     public ChannelConfig setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
         checkPositiveOrZero(writeBufferLowWaterMark, "writeBufferLowWaterMark");
-        for (;;) {
+        for (; ; ) {
             WriteBufferWaterMark waterMark = writeBufferWaterMark;
             if (writeBufferLowWaterMark > waterMark.high()) {
                 throw new IllegalArgumentException(
@@ -402,7 +409,9 @@ public class DefaultChannelConfig implements ChannelConfig {
                                 writeBufferLowWaterMark);
             }
             if (WATERMARK_UPDATER.compareAndSet(this, waterMark,
-                    new WriteBufferWaterMark(writeBufferLowWaterMark, waterMark.high(), false))) {
+                                                new WriteBufferWaterMark(writeBufferLowWaterMark,
+                                                                         waterMark.high(),
+                                                                         false))) {
                 return this;
             }
         }

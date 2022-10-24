@@ -170,11 +170,14 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
+        // 服务端建立连接
         SocketChannel ch = SocketUtils.accept(javaChannel());
 
         try {
             if (ch != null) {
+                // 将SocketChannel封装到NioSocketChannel中
                 buf.add(new NioSocketChannel(this, ch));
+                // 成功连接返回1
                 return 1;
             }
         } catch (Throwable t) {
@@ -186,7 +189,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
                 logger.warn("Failed to close a socket.", t2);
             }
         }
-
+        // 失败连接返回0
         return 0;
     }
 

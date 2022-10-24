@@ -190,6 +190,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     /**
      * ServerBootstrapAcceptor 也是一个 ChannelHandler 实现类，用于接受客户端的连接请求。
+     * 在服务器端启动过程中，被注册到服务端端NioServerSocketChannel的pipeline的尾端
      */
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
@@ -215,6 +216,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             enableAutoReadTask = new Runnable() {
                 @Override
                 public void run() {
+                    // 设置自动读取
                     channel.config().setAutoRead(true);
                 }
             };
@@ -223,14 +225,17 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            // Channel对象
             final Channel child = (Channel) msg;
-
+            // 向channel对象的pipeline尾端添加处理器
             child.pipeline().addLast(childHandler);
-
+            // 设置Channel的配置项
             setChannelOptions(child, childOptions, logger);
+            // 设置Channel属性
             setAttributes(child, childAttrs);
 
             try {
+                // work-EventLoopGroup中注册当前Channel，并添加注册失败的监听器
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
@@ -253,6 +258,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             final ChannelConfig config = ctx.channel().config();
             if (config.isAutoRead()) {
+                // 停止接收新的连接1s，在此期间允许channel恢复连接
                 // stop accept new connections for 1 second to allow the channel to recover
                 // See https://github.com/netty/netty/issues/1328
                 config.setAutoRead(false);

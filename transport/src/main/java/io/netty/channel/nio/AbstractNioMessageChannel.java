@@ -70,6 +70,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             final ChannelConfig config = config();
             final ChannelPipeline pipeline = pipeline();
             final RecvByteBufAllocator.Handle allocHandle = unsafe().recvBufAllocHandle();
+            // 重置 RecvByteBufAllocator.Handle 对象。
             allocHandle.reset(config);
 
             boolean closed = false;
@@ -85,20 +86,23 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                             closed = true;
                             break;
                         }
-
+                        // 读取到消息数量，实际上时在allocHandle中记录当前连接到客户端数量
                         allocHandle.incMessagesRead(localRead);
-                    } while (continueReading(allocHandle));
+                    } while (continueReading(allocHandle));// 循环判断是否继续读取
                 } catch (Throwable t) {
                     exception = t;
                 }
 
                 int size = readBuf.size();
+                // 根据readBuf列表中的对象的数量，循环触发Channel的read事件到pipeline中
                 for (int i = 0; i < size; i ++) {
                     readPending = false;
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
+                // 请求readBuf列表
                 readBuf.clear();
                 allocHandle.readComplete();
+                // 触发 Channel readComplete 事件到 pipeline 中。
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {
