@@ -23,25 +23,27 @@ import io.netty.util.AttributeMap;
 import io.netty.util.concurrent.EventExecutor;
 
 /**
+ * 作为 ChannelPipeline 中的节点
+ * <p>
  * Enables a {@link ChannelHandler} to interact with its {@link ChannelPipeline}
  * and other handlers. Among other things a handler can notify the next {@link ChannelHandler} in the
  * {@link ChannelPipeline} as well as modify the {@link ChannelPipeline} it belongs to dynamically.
  *
  * <h3>Notify</h3>
- *
+ * <p>
  * You can notify the closest handler in the same {@link ChannelPipeline} by calling one of the various methods
  * provided here.
- *
+ * <p>
  * Please refer to {@link ChannelPipeline} to understand how an event flows.
  *
  * <h3>Modifying a pipeline</h3>
- *
+ * <p>
  * You can get the {@link ChannelPipeline} your handler belongs to by calling
  * {@link #pipeline()}.  A non-trivial application could insert, remove, or
  * replace handlers in the pipeline dynamically at runtime.
  *
  * <h3>Retrieving for later use</h3>
- *
+ * <p>
  * You can keep the {@link ChannelHandlerContext} for later use, such as
  * triggering an event outside the handler methods, even from a different thread.
  * <pre>
@@ -61,14 +63,14 @@ import io.netty.util.concurrent.EventExecutor;
  * </pre>
  *
  * <h3>Storing stateful information</h3>
- *
+ * <p>
  * {@link #attr(AttributeKey)} allow you to
  * store and access stateful information that is related with a {@link ChannelHandler} / {@link Channel} and its
  * context. Please refer to {@link ChannelHandler} to learn various recommended
  * ways to manage stateful information.
  *
  * <h3>A handler can have more than one {@link ChannelHandlerContext}</h3>
- *
+ * <p>
  * Please note that a {@link ChannelHandler} instance can be added to more than
  * one {@link ChannelPipeline}.  It means a single {@link ChannelHandler}
  * instance can have more than one {@link ChannelHandlerContext} and therefore
@@ -83,6 +85,11 @@ import io.netty.util.concurrent.EventExecutor;
  * {@link ChannelPipeline} to find out more about inbound and outbound operations,
  * what fundamental differences they have, how they flow in a  pipeline,  and how to handle
  * the operation in your application.
+ *
+ * Context 相关的接口方法。
+ * 继承自 ChannelInboundInvoker 的相关方法，和 ChannelPipeline 一样。
+ * 继承自 ChannelOutboundInvoker 的相关方法，和 ChannelPipeline 一样。
+ * 继承自 AttributeMap 的相关方法，实际上已经废弃( @Deprecated )了，不再从 ChannelHandlerContext 中获取，而是从 Channel 中获取。
  */
 public interface ChannelHandlerContext extends AttributeMap, ChannelInboundInvoker, ChannelOutboundInvoker {
 

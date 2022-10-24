@@ -68,18 +68,22 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             AtomicIntegerFieldUpdater.newUpdater(AbstractChannelHandlerContext.class, "handlerState");
 
     /**
+     * 准备添加
      * {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} is about to be called.
      */
     private static final int ADD_PENDING = 1;
     /**
+     * 添加完成
      * {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} was called.
      */
     private static final int ADD_COMPLETE = 2;
     /**
+     * 已移除
      * {@link ChannelHandler#handlerRemoved(ChannelHandlerContext)} was called.
      */
     private static final int REMOVE_COMPLETE = 3;
     /**
+     * 初始化
      * Neither {@link ChannelHandler#handlerAdded(ChannelHandlerContext)}
      * nor {@link ChannelHandler#handlerRemoved(ChannelHandlerContext)} was called.
      */
@@ -99,6 +103,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     // There is no need to make this volatile as at worse it will just create a few more instances then needed.
     private Tasks invokeTasks;
 
+    /**
+     * ChannelHandlerContext当前状态
+     */
     private volatile int handlerState = INIT;
 
     AbstractChannelHandlerContext(DefaultChannelPipeline pipeline, EventExecutor executor,
@@ -276,8 +283,10 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     static void invokeChannelInactive(final AbstractChannelHandlerContext next) {
+        // 获取下一个Inbound HandlerContext节点
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
+            // 执行下一个Inbound节点的active方法
             next.invokeChannelInactive();
         } else {
             executor.execute(new Runnable() {
@@ -347,15 +356,15 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             } catch (Throwable error) {
                 if (logger.isDebugEnabled()) {
                     logger.debug(
-                        "An exception {}" +
-                        "was thrown by a user handler's exceptionCaught() " +
-                        "method while handling the following exception:",
-                        ThrowableUtil.stackTraceToString(error), cause);
+                            "An exception {}" +
+                                    "was thrown by a user handler's exceptionCaught() " +
+                                    "method while handling the following exception:",
+                            ThrowableUtil.stackTraceToString(error), cause);
                 } else if (logger.isWarnEnabled()) {
                     logger.warn(
-                        "An exception '{}' [enable DEBUG level for full stacktrace] " +
-                        "was thrown by a user handler's exceptionCaught() " +
-                        "method while handling the following exception:", error, cause);
+                            "An exception '{}' [enable DEBUG level for full stacktrace] " +
+                                    "was thrown by a user handler's exceptionCaught() " +
+                                    "method while handling the following exception:", error, cause);
                 }
             }
         } else {
@@ -567,6 +576,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     /**
      * bind方法如果在EventLoop线程中执行则会循环调用，因为next.invokeBind方法如果绑定失败会回调bind方法
+     *
      * @param localAddress
      * @param promise
      * @return
@@ -579,10 +589,13 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             return promise;
         }
 
+        // 获取下一个HandlerContext 节点
         final AbstractChannelHandlerContext next = findContextOutbound(MASK_BIND);
+        // 获取下一个HandlerContext 节点的执行器
         EventExecutor executor = next.executor();
-        // 判断当前方法是否在EventLoop线程中执行
+        // 判断执行器是否在EventLoop线程中执行
         if (executor.inEventLoop()) {
+            // 调用下一个节点的 bind方法
             next.invokeBind(localAddress, promise);
         } else {
             safeExecute(executor, new Runnable() {
@@ -602,6 +615,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
      * @param promise
      */
     private void invokeBind(SocketAddress localAddress, ChannelPromise promise) {
+        // 判断当前ChannelHandler是否符合要求
         if (invokeHandler()) {
             try {
                 // DON'T CHANGE
@@ -610,6 +624,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                 final ChannelHandler handler = handler();
                 final DefaultChannelPipeline.HeadContext headContext = pipeline.head;
                 if (handler == headContext) {
+                    // 当前ChannelHandler 为 HeadContext
                     headContext.bind(this, localAddress, promise);
                 } else if (handler instanceof ChannelDuplexHandler) {
                     ((ChannelDuplexHandler) handler).bind(this, localAddress, promise);
@@ -620,6 +635,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                 notifyOutboundHandlerException(t, promise);
             }
         } else {
+            // 不符合则传播 Outbound 事件给下一个节点
             bind(localAddress, promise);
         }
     }
@@ -971,7 +987,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
 
         final AbstractChannelHandlerContext next = findContextOutbound(flush ?
-                (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
+                                                                               (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
         final Object m = pipeline.touch(msg, next);
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
@@ -1062,6 +1078,12 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return false;
     }
 
+    /**
+     * 循环获取InboundHandler
+     *
+     * @param mask
+     * @return
+     */
     private AbstractChannelHandlerContext findContextInbound(int mask) {
         AbstractChannelHandlerContext ctx = this;
         EventExecutor currentExecutor = executor();
@@ -1074,6 +1096,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private AbstractChannelHandlerContext findContextOutbound(int mask) {
         AbstractChannelHandlerContext ctx = this;
         EventExecutor currentExecutor = executor();
+        // 循环，向前获得一个 Outbound 节点
         do {
             ctx = ctx.prev;
         } while (skipContext(ctx, currentExecutor, mask, MASK_ONLY_OUTBOUND));
@@ -1100,14 +1123,20 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         handlerState = REMOVE_COMPLETE;
     }
 
+    /**
+     * 设置 ChannelHandler 添加完成
+     *
+     * @return
+     */
     final boolean setAddComplete() {
-        for (;;) {
+        for (; ; ) {
             int oldState = handlerState;
             if (oldState == REMOVE_COMPLETE) {
                 return false;
             }
             // Ensure we never update when the handlerState is REMOVE_COMPLETE already.
-            // oldState is usually ADD_PENDING but can also be REMOVE_COMPLETE when an EventExecutor is used that is not
+            // oldState is usually ADD_PENDING but can also be REMOVE_COMPLETE
+            // when an EventExecutor is used that is not
             // exposing ordering guarantees.
             if (HANDLER_STATE_UPDATER.compareAndSet(this, oldState, ADD_COMPLETE)) {
                 return true;
@@ -1143,7 +1172,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     /**
      * Makes best possible effort to detect if {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} was called
      * yet. If not return {@code false} and if called or could not detect return {@code true}.
-     *
+     * <p>
      * If this method returns {@code false} we will not invoke the {@link ChannelHandler} but just forward the event.
      * This is needed as {@link DefaultChannelPipeline} may already put the {@link ChannelHandler} in the linked-list
      * but not called {@link ChannelHandler#handlerAdded(ChannelHandlerContext)}.
@@ -1170,7 +1199,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     private static boolean safeExecute(EventExecutor executor, Runnable runnable,
-            ChannelPromise promise, Object msg, boolean lazy) {
+                                       ChannelPromise promise, Object msg, boolean lazy) {
         try {
             if (lazy && executor instanceof AbstractEventExecutor) {
                 ((AbstractEventExecutor) executor).lazyExecute(runnable);
@@ -1209,7 +1238,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         });
 
         static WriteTask newInstance(AbstractChannelHandlerContext ctx,
-                Object msg, ChannelPromise promise, boolean flush) {
+                                     Object msg, ChannelPromise promise, boolean flush) {
             WriteTask task = RECYCLER.get();
             init(task, ctx, msg, promise, flush);
             return task;

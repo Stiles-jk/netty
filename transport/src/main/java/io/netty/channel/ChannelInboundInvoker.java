@@ -15,11 +15,14 @@
  */
 package io.netty.channel;
 
+/**
+ * 数据进入服务器后，在ChannelPipeLine中被链式调用
+ */
 public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} was registered to its {@link EventLoop}.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#channelRegistered(ChannelHandlerContext)} method
      * called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -28,7 +31,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} was unregistered from its {@link EventLoop}.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#channelUnregistered(ChannelHandlerContext)} method
      * called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -37,7 +40,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} is active now, which means it is connected.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#channelActive(ChannelHandlerContext)} method
      * called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -46,7 +49,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} is inactive now, which means it is closed.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#channelInactive(ChannelHandlerContext)} method
      * called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -55,7 +58,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} received an {@link Throwable} in one of its inbound operations.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#exceptionCaught(ChannelHandlerContext, Throwable)}
      * method  called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -64,7 +67,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} received an user defined event.
-     *
+     * <p>
      * This will result in having the  {@link ChannelInboundHandler#userEventTriggered(ChannelHandlerContext, Object)}
      * method  called of the next  {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
@@ -73,7 +76,7 @@ public interface ChannelInboundInvoker {
 
     /**
      * A {@link Channel} received a message.
-     *
+     * <p>
      * This will result in having the {@link ChannelInboundHandler#channelRead(ChannelHandlerContext, Object)}
      * method  called of the next {@link ChannelInboundHandler} contained in the  {@link ChannelPipeline} of the
      * {@link Channel}.
