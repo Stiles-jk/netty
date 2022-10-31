@@ -1065,6 +1065,12 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 事件传播流向：tail -> head
+     *
+     * @param msg
+     * @return
+     */
     @Override
     public final ChannelFuture write(Object msg) {
         return tail.write(msg);

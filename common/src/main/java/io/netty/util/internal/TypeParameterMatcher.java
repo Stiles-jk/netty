@@ -77,11 +77,11 @@ public abstract class TypeParameterMatcher {
 
         final Class<?> thisClass = object.getClass();
         Class<?> currentClass = thisClass;
-        for (;;) {
+        for (; ; ) {
             if (currentClass.getSuperclass() == parametrizedSuperclass) {
                 int typeParamIndex = -1;
                 TypeVariable<?>[] typeParams = currentClass.getSuperclass().getTypeParameters();
-                for (int i = 0; i < typeParams.length; i ++) {
+                for (int i = 0; i < typeParams.length; i++) {
                     if (typeParamName.equals(typeParams[i].getName())) {
                         typeParamIndex = i;
                         break;
@@ -148,6 +148,9 @@ public abstract class TypeParameterMatcher {
 
     public abstract boolean match(Object msg);
 
+    /**
+     * 类型反射匹配器
+     */
     private static final class ReflectiveMatcher extends TypeParameterMatcher {
         private final Class<?> type;
 
@@ -161,5 +164,6 @@ public abstract class TypeParameterMatcher {
         }
     }
 
-    TypeParameterMatcher() { }
+    TypeParameterMatcher() {
+    }
 }

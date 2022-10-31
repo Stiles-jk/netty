@@ -64,8 +64,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     volatile AbstractChannelHandlerContext next;
     volatile AbstractChannelHandlerContext prev;
 
-    private static final AtomicIntegerFieldUpdater<AbstractChannelHandlerContext> HANDLER_STATE_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(AbstractChannelHandlerContext.class, "handlerState");
+    private static final AtomicIntegerFieldUpdater<AbstractChannelHandlerContext> HANDLER_STATE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+            AbstractChannelHandlerContext.class,
+            "handlerState");
 
     /**
      * 准备添加
@@ -108,8 +109,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
      */
     private volatile int handlerState = INIT;
 
-    AbstractChannelHandlerContext(DefaultChannelPipeline pipeline, EventExecutor executor,
-                                  String name, Class<? extends ChannelHandler> handlerClass) {
+    AbstractChannelHandlerContext(DefaultChannelPipeline pipeline, EventExecutor executor, String name, Class<? extends ChannelHandler> handlerClass) {
         this.name = ObjectUtil.checkNotNull(name, "name");
         this.pipeline = pipeline;
         this.executor = executor;
@@ -355,16 +355,13 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                 handler().exceptionCaught(this, cause);
             } catch (Throwable error) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug(
-                            "An exception {}" +
-                                    "was thrown by a user handler's exceptionCaught() " +
-                                    "method while handling the following exception:",
-                            ThrowableUtil.stackTraceToString(error), cause);
+                    logger.debug("An exception {}" + "was thrown by a user handler's exceptionCaught() " + "method while handling the following exception:",
+                                 ThrowableUtil.stackTraceToString(error),
+                                 cause);
                 } else if (logger.isWarnEnabled()) {
-                    logger.warn(
-                            "An exception '{}' [enable DEBUG level for full stacktrace] " +
-                                    "was thrown by a user handler's exceptionCaught() " +
-                                    "method while handling the following exception:", error, cause);
+                    logger.warn("An exception '{}' [enable DEBUG level for full stacktrace] " + "was thrown by a user handler's exceptionCaught() " + "method while handling the following exception:",
+                                error,
+                                cause);
                 }
             }
         } else {
@@ -646,8 +643,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     @Override
-    public ChannelFuture connect(
-            final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
+    public ChannelFuture connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
         ObjectUtil.checkNotNull(remoteAddress, "remoteAddress");
 
         if (isNotValidPromise(promise, false)) {
@@ -977,6 +973,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         ObjectUtil.checkNotNull(msg, "msg");
         try {
             if (isNotValidPromise(promise, true)) {
+                // promise 是否有效，可以为空,有效则释放msg资源资源
                 ReferenceCountUtil.release(msg);
                 // cancelled
                 return;
@@ -986,14 +983,15 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             throw e;
         }
 
-        final AbstractChannelHandlerContext next = findContextOutbound(flush ?
-                                                                               (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
+        final AbstractChannelHandlerContext next = findContextOutbound(flush ? (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
         final Object m = pipeline.touch(msg, next);
         EventExecutor executor = next.executor();
         if (executor.inEventLoop()) {
             if (flush) {
+                // 执行 writeAndFlush 事件到下一个节点
                 next.invokeWriteAndFlush(m, promise);
             } else {
+                // 执行 write 事件到下一个节点
                 next.invokeWrite(m, promise);
             }
         } else {
@@ -1058,8 +1056,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
 
         if (promise.channel() != channel()) {
-            throw new IllegalArgumentException(String.format(
-                    "promise.channel does not match: %s (expected: %s)", promise.channel(), channel()));
+            throw new IllegalArgumentException(String.format("promise.channel does not match: %s (expected: %s)",
+                                                             promise.channel(),
+                                                             channel()));
         }
 
         if (promise.getClass() == DefaultChannelPromise.class) {
@@ -1067,13 +1066,11 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
 
         if (!allowVoidPromise && promise instanceof VoidChannelPromise) {
-            throw new IllegalArgumentException(
-                    StringUtil.simpleClassName(VoidChannelPromise.class) + " not allowed for this operation");
+            throw new IllegalArgumentException(StringUtil.simpleClassName(VoidChannelPromise.class) + " not allowed for this operation");
         }
 
         if (promise instanceof AbstractChannel.CloseFuture) {
-            throw new IllegalArgumentException(
-                    StringUtil.simpleClassName(AbstractChannel.CloseFuture.class) + " not allowed in a pipeline");
+            throw new IllegalArgumentException(StringUtil.simpleClassName(AbstractChannel.CloseFuture.class) + " not allowed in a pipeline");
         }
         return false;
     }
@@ -1093,6 +1090,12 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return ctx;
     }
 
+    /**
+     * 向前获取一个outbound节点
+     *
+     * @param mask
+     * @return
+     */
     private AbstractChannelHandlerContext findContextOutbound(int mask) {
         AbstractChannelHandlerContext ctx = this;
         EventExecutor currentExecutor = executor();
@@ -1103,8 +1106,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return ctx;
     }
 
-    private static boolean skipContext(
-            AbstractChannelHandlerContext ctx, EventExecutor currentExecutor, int mask, int onlyMask) {
+    private static boolean skipContext(AbstractChannelHandlerContext ctx, EventExecutor currentExecutor, int mask, int onlyMask) {
         // Ensure we correctly handle MASK_EXCEPTION_CAUGHT which is not included in the MASK_EXCEPTION_CAUGHT
         return (ctx.executionMask & (onlyMask | mask)) == 0 ||
                 // We can only skip if the EventExecutor is the same as otherwise we need to ensure we offload
@@ -1198,8 +1200,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         return channel().hasAttr(key);
     }
 
-    private static boolean safeExecute(EventExecutor executor, Runnable runnable,
-                                       ChannelPromise promise, Object msg, boolean lazy) {
+    private static boolean safeExecute(EventExecutor executor, Runnable runnable, ChannelPromise promise, Object msg, boolean lazy) {
         try {
             if (lazy && executor instanceof AbstractEventExecutor) {
                 ((AbstractEventExecutor) executor).lazyExecute(runnable);
@@ -1237,24 +1238,45 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             }
         });
 
-        static WriteTask newInstance(AbstractChannelHandlerContext ctx,
-                                     Object msg, ChannelPromise promise, boolean flush) {
+        static WriteTask newInstance(AbstractChannelHandlerContext ctx, Object msg, ChannelPromise promise, boolean flush) {
             WriteTask task = RECYCLER.get();
             init(task, ctx, msg, promise, flush);
             return task;
         }
 
-        private static final boolean ESTIMATE_TASK_SIZE_ON_SUBMIT =
-                SystemPropertyUtil.getBoolean("io.netty.transport.estimateSizeOnSubmit", true);
+        /**
+         * 提交任务时，是否计算 AbstractWriteTask 对象的自身占用内存大小
+         */
+        private static final boolean ESTIMATE_TASK_SIZE_ON_SUBMIT = SystemPropertyUtil.getBoolean(
+                "io.netty.transport.estimateSizeOnSubmit",
+                true);
 
+        // AbstractWriteTask对象默认占用的大小
         // Assuming compressed oops, 12 bytes obj header, 4 ref fields and one int field
-        private static final int WRITE_TASK_OVERHEAD =
-                SystemPropertyUtil.getInt("io.netty.transport.writeTaskSizeOverhead", 32);
+        private static final int WRITE_TASK_OVERHEAD = SystemPropertyUtil.getInt(
+                "io.netty.transport.writeTaskSizeOverhead",
+                32);
 
+        /**
+         * Recycler 处理器，用于在netty中实现对象池，减少gc次数
+         */
         private final Handle<WriteTask> handle;
+
+        /**
+         * PipeLine中到节点
+         */
         private AbstractChannelHandlerContext ctx;
+        /**
+         * 消息数据
+         */
         private Object msg;
+        /**
+         * 结果
+         */
         private ChannelPromise promise;
+        /**
+         * 对象大小不一
+         */
         private int size; // sign bit controls flush
 
         @SuppressWarnings("unchecked")
@@ -1262,8 +1284,16 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             this.handle = (Handle<WriteTask>) handle;
         }
 
-        protected static void init(WriteTask task, AbstractChannelHandlerContext ctx,
-                                   Object msg, ChannelPromise promise, boolean flush) {
+        /**
+         * 用于初始化WriteTask对象
+         *
+         * @param task
+         * @param ctx
+         * @param msg
+         * @param promise
+         * @param flush
+         */
+        protected static void init(WriteTask task, AbstractChannelHandlerContext ctx, Object msg, ChannelPromise promise, boolean flush) {
             task.ctx = ctx;
             task.msg = msg;
             task.promise = promise;
@@ -1283,6 +1313,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         public void run() {
             try {
                 decrementPendingOutboundBytes();
+
                 if (size >= 0) {
                     ctx.invokeWrite(msg, promise);
                 } else {

@@ -40,6 +40,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import static java.lang.Math.min;
 
 /**
+ * 在 write 操作时，将数据写到 ChannelOutboundBuffer 中。
+ * 在 flush 操作时，将 ChannelOutboundBuffer 的数据写入到对端。
  * (Transport implementors only) an internal data structure used by {@link AbstractChannel} to store its pending
  * outbound write requests.
  * <p>
@@ -119,7 +121,9 @@ public final class ChannelOutboundBuffer {
             Entry tail = tailEntry;
             tail.next = entry;
         }
+        // 更新 tailEntry 为新 Entry
         tailEntry = entry;
+        // 若 unflushedEntry 为空，更新为新 Entry
         if (unflushedEntry == null) {
             unflushedEntry = entry;
         }
@@ -145,7 +149,7 @@ public final class ChannelOutboundBuffer {
                 flushedEntry = entry;
             }
             do {
-                flushed ++;
+                flushed++;
                 if (!entry.promise.setUncancellable()) {
                     // Was cancelled so make sure we free up memory and notify about the freed bytes
                     int pending = entry.cancel();
@@ -224,6 +228,7 @@ public final class ChannelOutboundBuffer {
 
     /**
      * Return the current message flush progress.
+     *
      * @return {@code 0} if nothing was flushed before for the current message or there is no current message
      */
     public long currentProgress() {
@@ -235,6 +240,8 @@ public final class ChannelOutboundBuffer {
     }
 
     /**
+     * 处理当前消息的 Entry 的写入进度，主要是通知 Promise 消息写入的进度
+     *
      * Notify the {@link ChannelPromise} of the current message about writing progress.
      */
     public void progress(long amount) {
@@ -244,6 +251,7 @@ public final class ChannelOutboundBuffer {
         long progress = e.progress + amount;
         e.progress = progress;
         if (p instanceof ChannelProgressivePromise) {
+            // 通知 ChannelProgressivePromise 进度
             ((ChannelProgressivePromise) p).tryProgress(progress, e.total);
         }
     }
@@ -316,7 +324,7 @@ public final class ChannelOutboundBuffer {
     }
 
     private void removeEntry(Entry e) {
-        if (-- flushed == 0) {
+        if (--flushed == 0) {
             // processed everything
             flushedEntry = null;
             if (e == tailEntry) {
@@ -333,7 +341,7 @@ public final class ChannelOutboundBuffer {
      * This operation assumes all messages in this buffer is {@link ByteBuf}.
      */
     public void removeBytes(long writtenBytes) {
-        for (;;) {
+        for (; ; ) {
             Object msg = current();
             if (!(msg instanceof ByteBuf)) {
                 assert writtenBytes == 0;
@@ -394,6 +402,7 @@ public final class ChannelOutboundBuffer {
      * {@link AbstractChannel#doWrite(ChannelOutboundBuffer)}.
      * Refer to {@link NioSocketChannel#doWrite(ChannelOutboundBuffer)} for an example.
      * </p>
+     *
      * @param maxCount The maximum amount of buffers that will be added to the return value.
      * @param maxBytes A hint toward the maximum number of bytes to include as part of the return value. Note that this
      *                 value maybe exceeded because we make a best effort to include at least 1 {@link ByteBuffer}
@@ -404,8 +413,10 @@ public final class ChannelOutboundBuffer {
         assert maxBytes > 0;
         long nioBufferSize = 0;
         int nioBufferCount = 0;
+        // 获取当前线程的NioBuffer数组
         final InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.get();
         ByteBuffer[] nioBuffers = NIO_BUFFERS.get(threadLocalMap);
+        // 从 flushedEntry 节点，开始向下遍历
         Entry entry = flushedEntry;
         while (isFlushedEntry(entry) && entry.msg instanceof ByteBuf) {
             if (!entry.cancelled) {
@@ -414,6 +425,8 @@ public final class ChannelOutboundBuffer {
                 final int readableBytes = buf.writerIndex() - readerIndex;
 
                 if (readableBytes > 0) {
+                    // 前半段，可读取的字节数，不能超过 maxBytes
+                    // 后半段，如果第一条数据，就已经超过 maxBytes ，那么只能“强行”读取，否则会出现一直无法读取的情况。
                     if (maxBytes - readableBytes < nioBufferSize && nioBufferCount != 0) {
                         // If the nioBufferSize + readableBytes will overflow maxBytes, and there is at least one entry
                         // we stop populate the ByteBuffer array. This is done for 2 reasons:
@@ -484,6 +497,14 @@ public final class ChannelOutboundBuffer {
         return nioBufferCount;
     }
 
+    /**
+     * 进行 NIO ByteBuff 数组的扩容。
+     *
+     * @param array
+     * @param neededSpace
+     * @param size
+     * @return
+     */
     private static ByteBuffer[] expandNioBufferArray(ByteBuffer[] array, int neededSpace, int size) {
         int newCapacity = array.length;
         do {
@@ -552,7 +573,7 @@ public final class ChannelOutboundBuffer {
 
     private void setUserDefinedWritability(int index) {
         final int mask = ~writabilityMask(index);
-        for (;;) {
+        for (; ; ) {
             final int oldValue = unwritable;
             final int newValue = oldValue & mask;
             if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {
@@ -566,7 +587,7 @@ public final class ChannelOutboundBuffer {
 
     private void clearUserDefinedWritability(int index) {
         final int mask = writabilityMask(index);
-        for (;;) {
+        for (; ; ) {
             final int oldValue = unwritable;
             final int newValue = oldValue | mask;
             if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {
@@ -586,7 +607,7 @@ public final class ChannelOutboundBuffer {
     }
 
     private void setWritable(boolean invokeLater) {
-        for (;;) {
+        for (; ; ) {
             final int oldValue = unwritable;
             final int newValue = oldValue & ~1;
             if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {
@@ -599,7 +620,7 @@ public final class ChannelOutboundBuffer {
     }
 
     private void setUnwritable(boolean invokeLater) {
-        for (;;) {
+        for (; ; ) {
             final int oldValue = unwritable;
             final int newValue = oldValue | 1;
             if (UNWRITABLE_UPDATER.compareAndSet(this, oldValue, newValue)) {
@@ -656,7 +677,7 @@ public final class ChannelOutboundBuffer {
 
         try {
             inFail = true;
-            for (;;) {
+            for (; ; ) {
                 if (!remove0(cause, notify)) {
                     break;
                 }
@@ -805,6 +826,9 @@ public final class ChannelOutboundBuffer {
             }
         });
 
+        /**
+         * RECYCLE处理器
+         */
         private final Handle<Entry> handle;
         Entry next;
         Object msg;
@@ -821,6 +845,15 @@ public final class ChannelOutboundBuffer {
             this.handle = handle;
         }
 
+        /**
+         * Entry对象重用，每次从RECYCLER对象池中获取一个Entry对象
+         *
+         * @param msg
+         * @param size
+         * @param total
+         * @param promise
+         * @return
+         */
         static Entry newInstance(Object msg, int size, long total, ChannelPromise promise) {
             Entry entry = RECYCLER.get();
             entry.msg = msg;
@@ -849,6 +882,9 @@ public final class ChannelOutboundBuffer {
             return 0;
         }
 
+        /**
+         * 回收Entry对象
+         */
         void recycle() {
             next = null;
             bufs = null;
@@ -863,6 +899,11 @@ public final class ChannelOutboundBuffer {
             handle.recycle(this);
         }
 
+        /**
+         * 获取下一个Entry，并回收当前Entry对象
+         *
+         * @return
+         */
         Entry recycleAndGetNext() {
             Entry next = this.next;
             recycle();

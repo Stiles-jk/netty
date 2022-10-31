@@ -31,6 +31,7 @@ import io.netty.util.internal.ObjectUtil;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 当 Channel 的读或者写空闲时间太长时，将会触发一个 IdleStateEvent 事件。
  * Triggers an {@link IdleStateEvent} when a {@link Channel} has not performed
  * read, write, or both operation for a while.
  *
@@ -366,6 +367,7 @@ public class IdleStateHandler extends ChannelDuplexHandler {
     }
 
     /**
+     * 在 pipeline 中，触发 闲置(IdleStateEvent) 事件
      * Is called when an {@link IdleStateEvent} should be fired. This implementation calls
      * {@link ChannelHandlerContext#fireUserEventTriggered(Object)}.
      */
@@ -399,8 +401,11 @@ public class IdleStateHandler extends ChannelDuplexHandler {
             ChannelOutboundBuffer buf = unsafe.outboundBuffer();
 
             if (buf != null) {
+                // 记录第一条准备 flash 到对端的消息的 HashCode
                 lastMessageHashCode = System.identityHashCode(buf.current());
+                // 记录总共等待 flush 到对端的内存大小
                 lastPendingWriteBytes = buf.totalPendingWriteBytes();
+                // 记录最近一次flash到对端的任务
                 lastFlushProgress = buf.currentProgress();
             }
         }

@@ -59,7 +59,7 @@ import java.lang.annotation.Target;
  * (using {@link AttributeKey}s) which is specific to the handler.
  *
  * <h3>State management</h3>
- *
+ * <p>
  * A {@link ChannelHandler} often needs to store some stateful information.
  * The simplest and recommended approach is to use member variables:
  * <pre>
@@ -104,7 +104,7 @@ import java.lang.annotation.Target;
  * </pre>
  *
  * <h4>Using {@link AttributeKey}s</h4>
- *
+ * <p>
  * Although it's recommended to use member variables to store the state of a
  * handler, for some reason you might not want to create many handler instances.
  * In such a case, you can use {@link AttributeKey}s which is provided by
@@ -178,11 +178,13 @@ import java.lang.annotation.Target;
 public interface ChannelHandler {
 
     /**
+     * 判断当前ChannelHandler是否被添加到ChannelPipeline中
      * Gets called after the {@link ChannelHandler} was added to the actual context and it's ready to handle events.
      */
     void handlerAdded(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * ChannelHandler 已经成功从 ChannelPipeline 中被移除，不再进行处理事件。
      * Gets called after the {@link ChannelHandler} was removed from the actual context and it doesn't handle events
      * anymore.
      */
@@ -198,6 +200,7 @@ public interface ChannelHandler {
     void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception;
 
     /**
+     * 判断当前ChannelHandler可以被其他ChannelPipeline或者当前ChannelPipeline重复添加
      * Indicates that the same instance of the annotated {@link ChannelHandler}
      * can be added to one or more {@link ChannelPipeline}s multiple times
      * without a race condition.

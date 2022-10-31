@@ -113,6 +113,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
             // the selector to check for more data. Going back to the selector can add significant latency for large
             // data transfers.
             if (bytes == attemptedBytesRead()) {
+                // 记录实际读取到到数据
                 record(bytes);
             }
             super.lastBytesRead(bytes);
@@ -125,6 +126,7 @@ public class AdaptiveRecvByteBufAllocator extends DefaultMaxMessagesRecvByteBufA
 
         private void record(int actualReadBytes) {
             if (actualReadBytes <= SIZE_TABLE[max(0, index - INDEX_DECREMENT)]) {
+                // 降低容量，由代码可以看出，本次读取的数量小于指定大小后，下一次还小于，则会进行缩容
                 if (decreaseNow) {
                     index = max(index - INDEX_DECREMENT, minIndex);
                     nextReceiveBufferSize = SIZE_TABLE[index];
