@@ -51,6 +51,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * 基于SingleThreadEventLoop实现Netty的Reactor模型，通过run方法实现EventLoop的运行
  * {@link SingleThreadEventLoop} implementation which register the {@link Channel}'s to a
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  */
@@ -121,9 +122,13 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
+     * Channel的多路复用器
      * The NIO {@link Selector}.
      */
     private Selector selector;
+    /**
+     * 未包装的Selector，表示没有经过优化
+     */
     private Selector unwrappedSelector;
     /**
      * 注册的 SelectionKey 集合。
@@ -144,12 +149,34 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     // 唤醒标记。因为唤醒方法 {@link Selector#wakeup()} 开销比较大，通过该标识，减少调用。
     private final AtomicLong nextWakeupNanos = new AtomicLong(AWAKE);
 
+    /**
+     * 多路复用器的选择策略
+     */
     private final SelectStrategy selectStrategy;
 
+    /**
+     * 三种类型的任务：1) Channel 的就绪的 IO 事件；2) 普通任务；3) 定时任务。
+     * 处理 Channel 的就绪的 IO 事件，占处理任务的总时间的比例。
+     */
     private volatile int ioRatio = 50;
+    /**
+     * 取消 SelectionKey 的数量
+     */
     private int cancelledKeys;
+
     private boolean needsToSelectAgain;
 
+    /**
+     * 从构造方法中可以看出EventLoopGroup管理多个EventLoop
+     *
+     * @param parent                   EventLoop归属于哪个EventLoopGroup
+     * @param executor                 任务执行器
+     * @param selectorProvider         Selector生成器
+     * @param strategy                 Selector策略
+     * @param rejectedExecutionHandler 拒绝执行处理器
+     * @param taskQueueFactory         任务队列工厂
+     * @param tailTaskQueueFactory     尾部任务队列工厂
+     */
     NioEventLoop(NioEventLoopGroup parent, Executor executor, SelectorProvider selectorProvider,
                  SelectStrategy strategy, RejectedExecutionHandler rejectedExecutionHandler,
                  EventLoopTaskQueueFactory taskQueueFactory, EventLoopTaskQueueFactory tailTaskQueueFactory) {
@@ -157,6 +184,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
               rejectedExecutionHandler);
         this.provider = ObjectUtil.checkNotNull(selectorProvider, "selectorProvider");
         this.selectStrategy = ObjectUtil.checkNotNull(strategy, "selectStrategy");
+        // Selector元组，包含一个优化的selector和一个未优化的unwrappedSelector
         final SelectorTuple selectorTuple = openSelector();
         this.selector = selectorTuple.selector;
         this.unwrappedSelector = selectorTuple.unwrappedSelector;
@@ -305,7 +333,8 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     /**
      * 调用 PlatformDependent#newMpscQueue(...) 方法，创建 mpsc 队列。
      * mpsc 是 multiple producers and a single consumer 的缩写。
-     * mpsc 是对多线程生产任务，单线程消费任务的消费，
+     * mpsc 多生产者，单消费者；多代表有多个线程，单表示在一个线程中消费
+     * 由于是单线程消费，因此
      *
      * @param maxPendingTasks
      * @return
@@ -538,7 +567,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
-     * NioEventLoop 运行，处理任务
+     * NioEventLoop 运行，处理任务，
+     * 在SingleThreadEventExecutor的doStartThread方法中被调用
+     * 通过方法调用的追踪，发现是由SingleThreadEventExecutor的execute(Runnable task)方法调用
      */
     @Override
     protected void run() {
@@ -547,6 +578,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             try {
                 int strategy;
                 try {
+                    // 获取当前Selector的执行策略
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
                         case SelectStrategy.CONTINUE:
@@ -554,15 +586,18 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
                         case SelectStrategy.BUSY_WAIT:
                             // fall-through to SELECT since the busy-wait is not supported with NIO
-
+                            // 由于 NIO 不支持忙等待，因此直接选择 SELECT
                         case SelectStrategy.SELECT:
+                            // 获取下一个任务准备执行的截止事件
                             long curDeadlineNanos = nextScheduledTaskDeadlineNanos();
                             if (curDeadlineNanos == -1L) {
                                 curDeadlineNanos = NONE; // nothing on the calendar
                             }
+                            // 下次线程唤醒事件
                             nextWakeupNanos.set(curDeadlineNanos);
                             try {
                                 if (!hasTasks()) {
+                                    // 任务队列为空
                                     strategy = select(curDeadlineNanos);
                                 }
                             } finally {
@@ -853,6 +888,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     /**
      * 使用 NioTask ，自定义实现 Channel 处理 Channel IO 就绪的事件。
+     *
      * @param k
      * @param task
      */
@@ -940,6 +976,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private int select(long deadlineNanos) throws IOException {
         if (deadlineNanos == NONE) {
+            // 选择一组IO操作已经准备就绪的Channel的Key
             return selector.select();
         }
         // Timeout will only be 0 if deadline is within 5 microsecs

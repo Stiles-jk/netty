@@ -30,13 +30,18 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  * Abstract base class for {@link EventLoop}s that execute all its submitted tasks in a single thread.
- *
+ * 实现EventLoop，表示用于处理Channel中的事件
  */
 public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor implements EventLoop {
 
     protected static final int DEFAULT_MAX_PENDING_TASKS = Math.max(16,
-            SystemPropertyUtil.getInt("io.netty.eventLoop.maxPendingTasks", Integer.MAX_VALUE));
+                                                                    SystemPropertyUtil.getInt(
+                                                                            "io.netty.eventLoop.maxPendingTasks",
+                                                                            Integer.MAX_VALUE));
 
+    /**
+     * 尾部任务队列，在taskQueue执行完之后执行
+     */
     private final Queue<Runnable> tailTasks;
 
     protected SingleThreadEventLoop(EventLoopGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
@@ -86,6 +91,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     @Override
     public ChannelFuture register(final ChannelPromise promise) {
         ObjectUtil.checkNotNull(promise, "promise");
+        // 将Channel注册到当前EventLoop上
         promise.channel().unsafe().register(this, promise);
         return promise;
     }
@@ -124,7 +130,6 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
      * Removes a task that was added previously via {@link #executeAfterEventLoopIteration(Runnable)}.
      *
      * @param task to be removed.
-     *
      * @return {@code true} if the task was removed as a result of this call.
      */
     @UnstableApi
@@ -142,6 +147,11 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         return super.hasTasks() || !tailTasks.isEmpty();
     }
 
+    /**
+     * 返回 taskQueue.size() + tailTasks.size()
+     *
+     * @return
+     */
     @Override
     public int pendingTasks() {
         return super.pendingTasks() + tailTasks.size();
@@ -159,9 +169,9 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
 
     /**
      * @return read-only iterator of active {@link Channel}s registered with this {@link EventLoop}.
-     *         The returned value is not guaranteed to be exact accurate and
-     *         should be viewed as a best effort. This method is expected to be called from within
-     *         event loop.
+     * The returned value is not guaranteed to be exact accurate and
+     * should be viewed as a best effort. This method is expected to be called from within
+     * event loop.
      * @throws UnsupportedOperationException if operation is not supported by implementation.
      */
     @UnstableApi

@@ -28,7 +28,8 @@ public final class ThreadExecutorMap {
 
     private static final FastThreadLocal<EventExecutor> mappings = new FastThreadLocal<EventExecutor>();
 
-    private ThreadExecutorMap() { }
+    private ThreadExecutorMap() {
+    }
 
     /**
      * Returns the current {@link EventExecutor} that uses the {@link Thread}, or {@code null} if none / unknown.
@@ -38,6 +39,7 @@ public final class ThreadExecutorMap {
     }
 
     /**
+     * 设置 Thread 使用的当前 EventExecutor。
      * Set the current {@link EventExecutor} that is used by the {@link Thread}.
      */
     private static void setCurrentEventExecutor(EventExecutor executor) {
@@ -45,6 +47,7 @@ public final class ThreadExecutorMap {
     }
 
     /**
+     * 装饰给定的 Executor 并确保 currentExecutor() 在执行期间从 Runnable 中调用时返回 eventExecutor。
      * Decorate the given {@link Executor} and ensure {@link #currentExecutor()} will return {@code eventExecutor}
      * when called from within the {@link Runnable} during execution.
      */
@@ -60,6 +63,7 @@ public final class ThreadExecutorMap {
     }
 
     /**
+     * 装饰给定的 Runnable 并确保 currentExecutor() 在执行期间从 Runnable 中调用时返回 eventExecutor。
      * Decorate the given {@link Runnable} and ensure {@link #currentExecutor()} will return {@code eventExecutor}
      * when called from within the {@link Runnable} during execution.
      */
